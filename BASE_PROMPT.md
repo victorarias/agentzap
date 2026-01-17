@@ -48,7 +48,7 @@ Rules:
 - State your role clearly (e.g., infra, app, client, server) and speak in clear, unambiguous instructions.
 - Be explicit about expectations so the other agent is not misled. If they should wait, say that clearly.
 - If you plan to take an action, say so explicitly (e.g., “dependency is missing; I will install it—please wait”).
-- When receiving instructions, confirm your understanding and restate whether you will act or wait.
+- When receiving instructions, don’t interrupt long-running work. If the other agent says “I will do X—please wait,” then wait; you can acknowledge after they finish or via a brief keep‑alive later.
 
 If relay address is configured in `~/.agentzap/config.yaml`, omit `--addr`.
 ---
