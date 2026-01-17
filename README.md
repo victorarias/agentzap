@@ -58,7 +58,7 @@ brew install --HEAD agentzap
 
 Initialize config (optional):
 ```
-./agentzap init --addr 100.x.y.z:9800 --session alpha --id agent_x
+./agentzap init --addr 100.x.y.z:9800
 ```
 
 Send + wait:
