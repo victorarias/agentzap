@@ -1,0 +1,26 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+      - name: Build
+        run: |
+          mkdir -p dist
+          GOOS=linux GOARCH=amd64 go build -o dist/agentzap_linux_amd64 ./
+          GOOS=linux GOARCH=arm64 go build -o dist/agentzap_linux_arm64 ./
+          GOOS=darwin GOARCH=amd64 go build -o dist/agentzap_darwin_amd64 ./
+          GOOS=darwin GOARCH=arm64 go build -o dist/agentzap_darwin_arm64 ./
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*

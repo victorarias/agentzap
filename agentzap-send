@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+addr="${AGENT_ZAP_ADDR:-127.0.0.1:9800}"
+session="${AGENT_ZAP_SESSION:-default}"
+from="${AGENT_ZAP_ID:-}"
+
+usage() {
+  cat <<'EOF'
+agentzap-send: convenience wrapper for agentzap send
+
+Env defaults:
+  AGENT_ZAP_ADDR     relay address (default: 127.0.0.1:9800)
+  AGENT_ZAP_SESSION  session id (default: default)
+  AGENT_ZAP_ID       sender agent id (required unless --from provided)
+
+Usage:
+  agentzap-send --to <agent_id|all> --text "hi" [--thread <id>]
+  agentzap-send --from agent_x --to agent_y --session alpha --text "hi" --thread task-17
+EOF
+}
+
+to=""
+text=""
+thread=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --addr) addr="$2"; shift 2;;
+    --session) session="$2"; shift 2;;
+    --from) from="$2"; shift 2;;
+    --to) to="$2"; shift 2;;
+    --text) text="$2"; shift 2;;
+    --thread) thread="$2"; shift 2;;
+    -h|--help) usage; exit 0;;
+    *) echo "unknown arg: $1" >&2; usage; exit 2;;
+  esac
+done
+
+if [[ -z "$from" || -z "$to" || -z "$text" ]]; then
+  echo "missing --from/--to/--text (or set AGENT_ZAP_ID)" >&2
+  usage
+  exit 2
+fi
+
+exec agentzap send \
+  --addr "$addr" \
+  --from "$from" \
+  --to "$to" \
+  --session "$session" \
+  --text "$text" \
+  ${thread:+--thread "$thread"}
