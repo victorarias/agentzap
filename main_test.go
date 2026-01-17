@@ -233,3 +233,33 @@ func TestHistorySessionIsolation(t *testing.T) {
 		t.Fatalf("history leak: %s", histAlpha.Text)
 	}
 }
+
+func TestUpsertPromptMarkers(t *testing.T) {
+	existing := []byte("intro\n<!-- agentzap:begin -->\nold\n<!-- agentzap:end -->\nend\n")
+	updated, err := upsertPrompt(existing, []byte("<!-- agentzap:begin -->\nnew\n<!-- agentzap:end -->"))
+	if err != nil {
+		t.Fatalf("upsert error: %v", err)
+	}
+	if !strings.Contains(string(updated), "new") || strings.Contains(string(updated), "old") {
+		t.Fatalf("marker replace failed: %s", string(updated))
+	}
+}
+
+func TestUpsertPromptAppend(t *testing.T) {
+	existing := []byte("no prompt here\n")
+	updated, err := upsertPrompt(existing, []byte("<!-- agentzap:begin -->\nnew\n<!-- agentzap:end -->"))
+	if err != nil {
+		t.Fatalf("upsert error: %v", err)
+	}
+	if !strings.Contains(string(updated), "new") {
+		t.Fatalf("append failed: %s", string(updated))
+	}
+}
+
+func TestUpsertPromptMismatchMarkers(t *testing.T) {
+	existing := []byte("<!-- agentzap:begin -->\nold\n")
+	_, err := upsertPrompt(existing, []byte("<!-- agentzap:begin -->\nnew\n<!-- agentzap:end -->"))
+	if err == nil {
+		t.Fatalf("expected error for incomplete markers")
+	}
+}

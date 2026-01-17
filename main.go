@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -1151,7 +1152,8 @@ func formatAck(env envelope, mode outputMode) string {
 	}
 }
 
-const basePrompt = `# Talking With Other Agents
+const basePrompt = `<!-- agentzap:begin -->
+# Talking With Other Agents
 
 Guidance for agents using agentzap relay chat.
 
@@ -1199,21 +1201,79 @@ Rules:
 
 If relay address is configured in ~/.agentzap/config.yaml, omit --addr.
 ---
+<!-- agentzap:end -->
 `
 
 func installPrompt(path string, force bool) error {
 	if path == "" {
 		return fmt.Errorf("missing path")
 	}
-	if !force {
-		if _, err := os.Stat(path); err == nil {
-			return fmt.Errorf("prompt file exists: %s (use --force to overwrite)", path)
-		}
-	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte(basePrompt), 0o644)
+	if force {
+		return os.WriteFile(path, []byte(basePrompt), 0o644)
+	}
+	existing, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return os.WriteFile(path, []byte(basePrompt), 0o644)
+		}
+		return err
+	}
+	updated, err := upsertPrompt(existing, []byte(basePrompt))
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, updated, 0o644)
+}
+
+func upsertPrompt(existing, prompt []byte) ([]byte, error) {
+	start := []byte("<!-- agentzap:begin -->")
+	end := []byte("<!-- agentzap:end -->")
+	startIdx := bytes.Index(existing, start)
+	endIdx := bytes.Index(existing, end)
+
+	if (startIdx >= 0) != (endIdx >= 0) {
+		return nil, fmt.Errorf("prompt markers are incomplete; refusing to modify")
+	}
+	if startIdx >= 0 && endIdx >= 0 {
+		if endIdx < startIdx {
+			return nil, fmt.Errorf("prompt markers are out of order; refusing to modify")
+		}
+		endIdx += len(end)
+		out := append([]byte{}, existing[:startIdx]...)
+		out = append(out, prompt...)
+		out = append(out, existing[endIdx:]...)
+		return out, nil
+	}
+
+	// Fallback: attempt to replace legacy block if it exists.
+	legacyStart := []byte("# Talking With Other Agents")
+	legacyIdx := bytes.Index(existing, legacyStart)
+	if legacyIdx >= 0 {
+		// Find the next standalone delimiter line "---" after legacy start.
+		rest := existing[legacyIdx:]
+		delimiter := []byte("\n---")
+		delimIdx := bytes.LastIndex(rest, delimiter)
+		if delimIdx < 0 {
+			return nil, fmt.Errorf("found legacy prompt header but could not validate block")
+		}
+		blockEnd := legacyIdx + delimIdx + len(delimiter) + 1
+		out := append([]byte{}, existing[:legacyIdx]...)
+		out = append(out, prompt...)
+		out = append(out, existing[blockEnd:]...)
+		return out, nil
+	}
+
+	// Append if no existing prompt found.
+	out := append([]byte{}, existing...)
+	if len(out) > 0 && out[len(out)-1] != '\n' {
+		out = append(out, '\n')
+	}
+	out = append(out, '\n')
+	out = append(out, prompt...)
+	return out, nil
 }
 
 func promptInstallPath(target, scope, projectPath string) (string, error) {
