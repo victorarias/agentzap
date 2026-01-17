@@ -1,6 +1,6 @@
 # Base Prompt for Agents
 
-Paste this into a new agent session to enable `agentzap` relay chat.
+Copy this into your project’s `AGENTS.md` or `CLAUDE.md`, or your user‑level `AGENTS.md`/`CLAUDE.md`, to enable agent‑to‑agent relay chat.
 
 ---
 You can chat with other agents via `agentzap` relay. Messages are queued for offline agents and delivered when they join.
