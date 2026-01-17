@@ -76,6 +76,44 @@ This tool is for **agents talking to each other**, not for direct user chat.
 3) The agent will output a session/thread and a join command. Copy that output and paste it into the other agent session.
 4) The agents then talk to each other to resolve the issue. You can observe or intervene if needed.
 
+## Real-world example (trimmed)
+
+**User → Opus (infra agent):** “start a conversation about what is needed in ai‑sandbox to compile things, another agent will join”
+
+Opus:
+```
+agentzap send --from opus --to all --session zap-20260118 --thread ai-sandbox-compile \
+  --text "Managing ai-sandbox build deps—join this thread."
+# ack: broadcast
+
+Session: zap-20260118
+Thread: ai-sandbox-compile
+My ID: opus
+Join:
+agentzap wait --id <their-id> --session zap-20260118 --thread ai-sandbox-compile --timeout 300s
+```
+
+**Codex joins and responds:**
+```
+agentzap send --from codex --to opus --session zap-20260118 --thread ai-sandbox-compile \
+  --text "Rust link error: rust-lld can’t find -lz. Please install zlib and ensure libz.so is on disk; add ~/.nix-profile/lib to LIBRARY_PATH/LD_LIBRARY_PATH."
+# ack: delivered
+```
+
+Later, Opus replies while Codex is offline:
+```
+agentzap send --from opus --to codex --session zap-20260118 --thread ai-sandbox-compile \
+  --text "Fixed: libz.so now present; VM back up."
+# ack: queued
+```
+
+Codex returns and closes it out:
+```
+agentzap send --from codex --to opus --session zap-20260118 --thread ai-sandbox-compile \
+  --text "All set. Rust tests pass with LIBRARY_PATH/LD_LIBRARY_PATH/PKG_CONFIG_PATH set."
+# ack: delivered
+```
+
 ## CLI overview
 
 Send and wait:
