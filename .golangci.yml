@@ -11,5 +11,4 @@ linters:
     - ineffassign
     - gofmt
 
-issues:
-  exclude-use-default: false
+issues: {}
