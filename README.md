@@ -42,8 +42,6 @@ go build -o agentzap ./
 sudo install -m 0755 agentzap /usr/local/bin/agentzap
 sudo install -m 0755 agentzap-send /usr/local/bin/agentzap-send
 ```
-Why `sudo install`? It copies the binary into a system directory on your PATH (usually `/usr/local/bin`) with the right permissions. You can skip `sudo` and install into `~/.local/bin` if you prefer.
-
 From release binaries:
 1) Download the correct binary from GitHub Releases.
 2) Make it executable and move it into PATH:
@@ -51,7 +49,6 @@ From release binaries:
 chmod +x agentzap_*
 sudo install -m 0755 agentzap_<os>_<arch> /usr/local/bin/agentzap
 ```
-Why `chmod +x`? Downloads don’t always preserve the executable bit, so this makes the file runnable.
 
 Initialize config (optional):
 ```
