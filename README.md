@@ -50,6 +50,12 @@ chmod +x agentzap_*
 sudo install -m 0755 agentzap_<os>_<arch> /usr/local/bin/agentzap
 ```
 
+Homebrew (HEAD until first stable release):
+```
+brew tap victorarias/agentzap
+brew install --HEAD agentzap
+```
+
 Initialize config (optional):
 ```
 ./agentzap init --addr 100.x.y.z:9800 --session alpha --id agent_x
