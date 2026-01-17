@@ -9,6 +9,5 @@ linters:
     - errcheck
     - staticcheck
     - ineffassign
-    - gofmt
 
 issues: {}
