@@ -83,9 +83,9 @@ func TestPresenceBySession(t *testing.T) {
 	defer cleanup()
 
 	a := dialAndHello(t, addr, "agent_a", "alpha")
-	defer a.conn.Close()
+	defer func() { _ = a.conn.Close() }()
 	b := dialAndHello(t, addr, "agent_b", "beta")
-	defer b.conn.Close()
+	defer func() { _ = b.conn.Close() }()
 
 	sendEnv(t, a, envelope{Type: "presence", Session: "alpha"})
 	resp := readEnv(t, a, 2*time.Second)
@@ -108,11 +108,11 @@ func TestMessageRoutingAndBroadcast(t *testing.T) {
 	defer cleanup()
 
 	a := dialAndHello(t, addr, "agent_a", "alpha")
-	defer a.conn.Close()
+	defer func() { _ = a.conn.Close() }()
 	b := dialAndHello(t, addr, "agent_b", "alpha")
-	defer b.conn.Close()
+	defer func() { _ = b.conn.Close() }()
 	c := dialAndHello(t, addr, "agent_c", "alpha")
-	defer c.conn.Close()
+	defer func() { _ = c.conn.Close() }()
 
 	sendEnv(t, a, envelope{Type: "msg", To: "agent_b", Text: "hi"})
 	ack := readEnv(t, a, 2*time.Second)
@@ -138,7 +138,7 @@ func TestOfflineQueueDelivery(t *testing.T) {
 	defer cleanup()
 
 	a := dialAndHello(t, addr, "agent_a", "alpha")
-	defer a.conn.Close()
+	defer func() { _ = a.conn.Close() }()
 
 	sendEnv(t, a, envelope{Type: "msg", To: "agent_b", Text: "queued"})
 	ack := readEnv(t, a, 2*time.Second)
@@ -147,7 +147,7 @@ func TestOfflineQueueDelivery(t *testing.T) {
 	}
 
 	b := dialAndHello(t, addr, "agent_b", "alpha")
-	defer b.conn.Close()
+	defer func() { _ = b.conn.Close() }()
 	got := readEnv(t, b, 2*time.Second)
 	if got.Type != "msg" || got.Text != "queued" || got.AgentID != "agent_a" {
 		t.Fatalf("unexpected queued delivery: %#v", got)
@@ -159,7 +159,7 @@ func TestNoQueueOffline(t *testing.T) {
 	defer cleanup()
 
 	a := dialAndHello(t, addr, "agent_a", "alpha")
-	defer a.conn.Close()
+	defer func() { _ = a.conn.Close() }()
 	sendEnv(t, a, envelope{Type: "msg", To: "agent_b", Text: "drop", Meta: map[string]string{"no_queue": "true"}})
 	ack := readEnv(t, a, 2*time.Second)
 	if ack.Type != "ack" || ack.Status != "offline" {
@@ -173,7 +173,7 @@ func TestPinSetGet(t *testing.T) {
 	defer cleanup()
 
 	a := dialAndHello(t, addr, "agent_a", "alpha")
-	defer a.conn.Close()
+	defer func() { _ = a.conn.Close() }()
 	sendEnv(t, a, envelope{Type: "pin_set", Session: "alpha", Meta: map[string]string{"key": "topic", "value": "hello"}})
 	ack := readEnv(t, a, 2*time.Second)
 	if ack.Type != "pin_ack" {
@@ -192,9 +192,9 @@ func TestHistoryWrites(t *testing.T) {
 	defer cleanup()
 
 	a := dialAndHello(t, addr, "agent_a", "alpha")
-	defer a.conn.Close()
+	defer func() { _ = a.conn.Close() }()
 	b := dialAndHello(t, addr, "agent_b", "alpha")
-	defer b.conn.Close()
+	defer func() { _ = b.conn.Close() }()
 
 	sendEnv(t, a, envelope{Type: "msg", To: "agent_b", Text: "logged", Thread: "alpha-thread"})
 	_ = readEnv(t, a, 2*time.Second) // ack

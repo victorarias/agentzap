@@ -382,7 +382,7 @@ func (s *serverState) saveHistory(rec msgRecord) {
 		log.Printf("history open: %v", err)
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	b, _ := json.Marshal(rec)
 	if _, err := f.Write(append(b, '\n')); err != nil {
 		log.Printf("history write: %v", err)
@@ -423,7 +423,7 @@ func readHistoryFile(historyDir, thread string, last int, since int64) ([]msgRec
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	var out []msgRecord
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
@@ -489,7 +489,7 @@ func filterExpired(envs []envelope) []envelope {
 }
 
 func handleConn(s *serverState, conn net.Conn) {
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	reader := bufio.NewReader(conn)
 	var agentID string
 	var sessionID string
@@ -711,7 +711,7 @@ func runServer(addr, historyDir string, maxHistory int, queueTTL time.Duration) 
 	if err != nil {
 		return err
 	}
-	defer ln.Close()
+	defer func() { _ = ln.Close() }()
 	log.Printf("relay listening on %s", addr)
 	state := newServerState(historyDir, maxHistory, queueTTL)
 	for {
@@ -729,7 +729,7 @@ func runClient(addr, agentID, session string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	if session == "" {
 		session = "default"
 	}
@@ -775,7 +775,7 @@ func runSend(addr, fromID, session, to, text, thread string, timeout time.Durati
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	if session == "" {
 		session = "default"
 	}
@@ -818,7 +818,7 @@ func runWait(addr, agentID, session, thread string, timeout time.Duration, mode 
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	if session == "" {
 		session = "default"
 	}
@@ -853,7 +853,7 @@ func runPresence(addr, agentID, session string, mode outputMode, quiet bool) err
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	if agentID == "" {
 		agentID = fmt.Sprintf("cli-%s", newMsgID())
 	}
@@ -905,7 +905,7 @@ func runHistory(addr, agentID, session, thread string, last int, since int64, mo
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	if agentID == "" {
 		agentID = fmt.Sprintf("cli-%s", newMsgID())
 	}
@@ -963,7 +963,7 @@ func runPin(addr, agentID, session, action, key, value string, mode outputMode, 
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	if agentID == "" {
 		agentID = fmt.Sprintf("cli-%s", newMsgID())
 	}
@@ -1049,7 +1049,7 @@ func runDoctor(addr, agentID, session string, mode outputMode, quiet bool) error
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	if agentID == "" {
 		agentID = fmt.Sprintf("cli-%s", newMsgID())
 	}
