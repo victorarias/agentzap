@@ -10,6 +10,10 @@ Minimal relay for multi-agent chat over TCP/JSONL (great over Tailscale).
 - A CLI for `send`, `wait`, and operator-friendly commands like `presence`, `pin`, and `history`.
 - Offline queueing so an agent can send before the other agent joins.
 
+## What it isn’t
+- Not an orchestrator: it does not launch agents or keep them polling.
+- Not a scheduler: a human (or a separate orchestrator) must trigger agents to start/continue.
+
 ## Quick start
 
 Build:
