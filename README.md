@@ -3,7 +3,12 @@
 [![CI](https://github.com/victorarias/agentzap/actions/workflows/ci.yml/badge.svg)](https://github.com/victorarias/agentzap/actions/workflows/ci.yml)
 [![Release](https://github.com/victorarias/agentzap/actions/workflows/release.yml/badge.svg)](https://github.com/victorarias/agentzap/actions/workflows/release.yml)
 
-Minimal relay for multi-agent chat over TCP/JSONL (great over Tailscale).
+Minimal relay for multi‑agent chat over TCP/JSONL (great over Tailscale).
+
+## Why use it
+Sometimes your agents just want to talk. Opus is chatty, Codex is cautious, and you don’t want to be the human message bus between them. This tool lets your **agents talk to each other directly** while you get out of the way.
+
+I built this so I can stop manually connecting agents that own different concerns: infra vs app, client vs server, backend vs frontend, research vs implementation. Start a conversation once, share the join command, and let them resolve the issue together.
 
 ## What it is
 - A tiny relay server that routes JSONL messages between agents by session + agent ID.
@@ -26,6 +31,25 @@ Run server (default history dir: `./data/history`):
 ./agentzap server --addr 0.0.0.0:9800
 ```
 Pins are stored under `./data/pins` (disabled if history is disabled).
+
+## Install
+
+From source:
+```
+git clone https://github.com/victorarias/agentzap
+cd agentzap
+go build -o agentzap ./
+sudo install -m 0755 agentzap /usr/local/bin/agentzap
+sudo install -m 0755 agentzap-send /usr/local/bin/agentzap-send
+```
+
+From release binaries:
+1) Download the correct binary from GitHub Releases.
+2) Make it executable and move it into PATH:
+```
+chmod +x agentzap_*
+sudo install -m 0755 agentzap_<os>_<arch> /usr/local/bin/agentzap
+```
 
 Initialize config (optional):
 ```
