@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/yaml.v3"
+	yamlv3 "gopkg.in/yaml.v3"
 )
 
 const (
@@ -230,7 +230,7 @@ func (s *serverState) loadPins(session string) {
 		return
 	}
 	var m map[string]string
-	if err := yaml.Unmarshal(b, &m); err != nil {
+	if err := yamlv3.Unmarshal(b, &m); err != nil {
 		s.pinsLoaded[session] = true
 		return
 	}
@@ -246,7 +246,7 @@ func (s *serverState) savePins(session string) {
 		return
 	}
 	path := filepath.Join(s.pinsDir, safeFileName(session)+".yaml")
-	b, err := yaml.Marshal(s.pins[session])
+	b, err := yamlv3.Marshal(s.pins[session])
 	if err != nil {
 		return
 	}
@@ -1146,7 +1146,7 @@ func loadConfig() (config, error) {
 		return config{}, err
 	}
 	var cfg config
-	if err := yaml.Unmarshal(b, &cfg); err != nil {
+	if err := yamlv3.Unmarshal(b, &cfg); err != nil {
 		return config{}, err
 	}
 	return cfg, nil
@@ -1165,7 +1165,7 @@ func saveConfig(cfg config, force bool) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	b, err := yaml.Marshal(cfg)
+	b, err := yamlv3.Marshal(cfg)
 	if err != nil {
 		return err
 	}
@@ -1455,7 +1455,7 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			b, _ := yaml.Marshal(cfg)
+			b, _ := yamlv3.Marshal(cfg)
 			fmt.Print(string(b))
 		case "get":
 			if len(os.Args) < 4 {
