@@ -1,0 +1,7 @@
+/.local/
+/agentzap
+/agentzap_darwin_amd64
+/agentzap_darwin_arm64
+/agent-zap
+/data/
+*.log
