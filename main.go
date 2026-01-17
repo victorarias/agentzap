@@ -49,6 +49,7 @@ type msgRecord struct {
 	From      string            `json:"from"`
 	To        string            `json:"to"`
 	Text      string            `json:"text"`
+	Session   string            `json:"session"`
 	Thread    string            `json:"thread,omitempty"`
 	Meta      map[string]string `json:"meta,omitempty"`
 	MsgID     string            `json:"msg_id,omitempty"`
@@ -58,7 +59,7 @@ type msgRecord struct {
 type agentConn struct {
 	id         string
 	session    string
-	conn       net.Conn
+	writer     *connWriter
 	lastSeen   time.Time
 	lastFrom   string
 	lastTo     string
@@ -78,7 +79,7 @@ type broadcastState struct {
 type serverState struct {
 	mu           sync.Mutex
 	sessions     map[string]*sessionState
-	history      map[string][]msgRecord
+	history      map[string]map[string][]msgRecord
 	offline      map[string]map[string][]envelope
 	broadcast    map[string]*broadcastState
 	pins         map[string]map[string]string
@@ -96,7 +97,7 @@ func newServerState(historyDir string, maxPerThread int, queueTTL time.Duration)
 	}
 	return &serverState{
 		sessions:     make(map[string]*sessionState),
-		history:      make(map[string][]msgRecord),
+		history:      make(map[string]map[string][]msgRecord),
 		offline:      make(map[string]map[string][]envelope),
 		broadcast:    make(map[string]*broadcastState),
 		pins:         make(map[string]map[string]string),
@@ -108,7 +109,7 @@ func newServerState(historyDir string, maxPerThread int, queueTTL time.Duration)
 	}
 }
 
-func (s *serverState) registerAgent(session, id string, c net.Conn) []envelope {
+func (s *serverState) registerAgent(session, id string, w *connWriter) []envelope {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if session == "" {
@@ -122,7 +123,7 @@ func (s *serverState) registerAgent(session, id string, c net.Conn) []envelope {
 	ss.agents[id] = &agentConn{
 		id:       id,
 		session:  session,
-		conn:     c,
+		writer:   w,
 		lastSeen: time.Now(),
 	}
 	var queued []envelope
@@ -328,12 +329,16 @@ func (s *serverState) getPresenceSnapshot(session string) []map[string]string {
 func (s *serverState) getHistory(session, thread string, last int, since int64) []msgRecord {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if session == "" {
+		session = "default"
+	}
+	sessionHist := s.history[session]
 	if thread != "" {
-		h := s.history[thread]
+		h := sessionHist[thread]
 		return filterHistory(h, last, since)
 	}
 	var out []msgRecord
-	for _, h := range s.history {
+	for _, h := range sessionHist {
 		out = append(out, h...)
 	}
 	return filterHistory(out, last, since)
@@ -353,15 +358,21 @@ func filterHistory(h []msgRecord, last int, since int64) []msgRecord {
 	return out
 }
 
-func (s *serverState) appendHistory(thread string, rec msgRecord) {
+func (s *serverState) appendHistory(session, thread string, rec msgRecord) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	h := s.history[thread]
+	if session == "" {
+		session = "default"
+	}
+	if s.history[session] == nil {
+		s.history[session] = make(map[string][]msgRecord)
+	}
+	h := s.history[session][thread]
 	h = append(h, rec)
 	if len(h) > s.maxPerThread {
 		h = h[len(h)-s.maxPerThread:]
 	}
-	s.history[thread] = h
+	s.history[session][thread] = h
 }
 
 func (s *serverState) saveHistory(rec msgRecord) {
@@ -372,10 +383,15 @@ func (s *serverState) saveHistory(rec msgRecord) {
 		log.Printf("history mkdir: %v", err)
 		return
 	}
-	name := fmt.Sprintf("%s.jsonl", safeFileName(rec.Thread))
-	if rec.Thread == "" {
-		name = "default.jsonl"
+	threadName := safeFileName(rec.Thread)
+	if threadName == "" {
+		threadName = "default"
 	}
+	sessionName := safeFileName(rec.Session)
+	if sessionName == "" {
+		sessionName = "default"
+	}
+	name := fmt.Sprintf("%s__%s.jsonl", sessionName, threadName)
 	path := filepath.Join(s.historyDir, name)
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
@@ -413,11 +429,16 @@ func safeFileName(s string) string {
 	return s
 }
 
-func readHistoryFile(historyDir, thread string, last int, since int64) ([]msgRecord, error) {
-	name := fmt.Sprintf("%s.jsonl", safeFileName(thread))
-	if thread == "" {
-		name = "default.jsonl"
+func readHistoryFile(historyDir, session, thread string, last int, since int64) ([]msgRecord, error) {
+	threadName := safeFileName(thread)
+	if threadName == "" {
+		threadName = "default"
 	}
+	sessionName := safeFileName(session)
+	if sessionName == "" {
+		sessionName = "default"
+	}
+	name := fmt.Sprintf("%s__%s.jsonl", sessionName, threadName)
 	path := filepath.Join(historyDir, name)
 	f, err := os.Open(path)
 	if err != nil {
@@ -491,6 +512,7 @@ func filterExpired(envs []envelope) []envelope {
 func handleConn(s *serverState, conn net.Conn) {
 	defer func() { _ = conn.Close() }()
 	reader := bufio.NewReader(conn)
+	writer := &connWriter{conn: conn}
 	var agentID string
 	var sessionID string
 
@@ -511,30 +533,30 @@ func handleConn(s *serverState, conn net.Conn) {
 		}
 		var env envelope
 		if err := json.Unmarshal(line, &env); err != nil {
-			_ = writeJSON(conn, envelope{Type: "error", Text: "invalid json"})
+			_ = writeJSONW(writer, envelope{Type: "error", Text: "invalid json"})
 			continue
 		}
 		switch env.Type {
 		case "hello":
 			if env.AgentID == "" {
-				_ = writeJSON(conn, envelope{Type: "error", Text: "missing agent_id"})
+				_ = writeJSONW(writer, envelope{Type: "error", Text: "missing agent_id"})
 				continue
 			}
 			agentID = env.AgentID
 			sessionID = env.Session
-			queued := s.registerAgent(sessionID, agentID, conn)
-			_ = writeJSON(conn, envelope{Type: "hello_ack", AgentID: agentID, Session: sessionID})
+			queued := s.registerAgent(sessionID, agentID, writer)
+			_ = writeJSONW(writer, envelope{Type: "hello_ack", AgentID: agentID, Session: sessionID})
 			for _, q := range filterExpired(queued) {
 				if q.AgentID == agentID {
 					continue
 				}
-				_ = writeJSON(conn, q)
+				_ = writeJSONW(writer, q)
 			}
 		case "ping":
 			if agentID != "" {
 				s.updatePresence(sessionID, agentID)
 			}
-			_ = writeJSON(conn, envelope{Type: "pong"})
+			_ = writeJSONW(writer, envelope{Type: "pong"})
 		case "presence":
 			sess := env.Session
 			if sess == "" {
@@ -542,7 +564,7 @@ func handleConn(s *serverState, conn net.Conn) {
 			}
 			snapshot := s.getPresenceSnapshot(sess)
 			payload, _ := json.Marshal(snapshot)
-			_ = writeJSON(conn, envelope{Type: "presence", Text: string(payload)})
+			_ = writeJSONW(writer, envelope{Type: "presence", Text: string(payload)})
 		case "pin_set":
 			sess := env.Session
 			if sess == "" {
@@ -555,11 +577,11 @@ func handleConn(s *serverState, conn net.Conn) {
 				val = env.Meta["value"]
 			}
 			if key == "" {
-				_ = writeJSON(conn, envelope{Type: "error", Text: "missing key"})
+				_ = writeJSONW(writer, envelope{Type: "error", Text: "missing key"})
 				continue
 			}
 			s.setPin(sess, key, val)
-			_ = writeJSON(conn, envelope{Type: "pin_ack", Status: "ok"})
+			_ = writeJSONW(writer, envelope{Type: "pin_ack", Status: "ok"})
 		case "pin_get":
 			sess := env.Session
 			if sess == "" {
@@ -573,11 +595,11 @@ func handleConn(s *serverState, conn net.Conn) {
 			if key != "" {
 				val := pins[key]
 				payload, _ := json.Marshal(map[string]string{key: val})
-				_ = writeJSON(conn, envelope{Type: "pin", Text: string(payload)})
+				_ = writeJSONW(writer, envelope{Type: "pin", Text: string(payload)})
 				continue
 			}
 			payload, _ := json.Marshal(pins)
-			_ = writeJSON(conn, envelope{Type: "pin", Text: string(payload)})
+			_ = writeJSONW(writer, envelope{Type: "pin", Text: string(payload)})
 		case "pin_del":
 			sess := env.Session
 			if sess == "" {
@@ -588,11 +610,11 @@ func handleConn(s *serverState, conn net.Conn) {
 				key = env.Meta["key"]
 			}
 			if key == "" {
-				_ = writeJSON(conn, envelope{Type: "error", Text: "missing key"})
+				_ = writeJSONW(writer, envelope{Type: "error", Text: "missing key"})
 				continue
 			}
 			s.deletePin(sess, key)
-			_ = writeJSON(conn, envelope{Type: "pin_ack", Status: "ok"})
+			_ = writeJSONW(writer, envelope{Type: "pin_ack", Status: "ok"})
 		case "history":
 			sess := env.Session
 			if sess == "" {
@@ -607,19 +629,19 @@ func handleConn(s *serverState, conn net.Conn) {
 			}
 			hist := s.getHistory(sess, thread, last, since)
 			if len(hist) == 0 && thread != "" && s.historyDir != "" {
-				if h2, err := readHistoryFile(s.historyDir, thread, last, since); err == nil {
+				if h2, err := readHistoryFile(s.historyDir, sess, thread, last, since); err == nil {
 					hist = h2
 				}
 			}
 			payload, _ := json.Marshal(hist)
-			_ = writeJSON(conn, envelope{Type: "history", Text: string(payload)})
+			_ = writeJSONW(writer, envelope{Type: "history", Text: string(payload)})
 		case "msg":
 			if agentID == "" {
-				_ = writeJSON(conn, envelope{Type: "error", Text: "not registered"})
+				_ = writeJSONW(writer, envelope{Type: "error", Text: "not registered"})
 				continue
 			}
 			if env.To == "" {
-				_ = writeJSON(conn, envelope{Type: "error", Text: "missing to"})
+				_ = writeJSONW(writer, envelope{Type: "error", Text: "missing to"})
 				continue
 			}
 			thread := env.Thread
@@ -634,12 +656,13 @@ func handleConn(s *serverState, conn net.Conn) {
 				From:      agentID,
 				To:        env.To,
 				Text:      env.Text,
+				Session:   sessionID,
 				Thread:    thread,
 				Meta:      env.Meta,
 				MsgID:     msgID,
 				Timestamp: time.Now().Unix(),
 			}
-			s.appendHistory(thread, rec)
+			s.appendHistory(sessionID, thread, rec)
 			s.saveHistory(rec)
 			s.noteLastMessage(sessionID, agentID, env.To, env.Text)
 			msgEnv := envelope{
@@ -675,26 +698,26 @@ func handleConn(s *serverState, conn net.Conn) {
 			if env.To == "*" || env.To == "all" {
 				s.addBroadcast(sessionID, msgEnv)
 				for _, t := range targets {
-					_ = writeJSON(t.conn, msgEnv)
+					_ = writeJSONW(t.writer, msgEnv)
 				}
-				_ = writeJSON(conn, envelope{Type: "ack", Status: "broadcast", MsgID: msgID})
+				_ = writeJSONW(writer, envelope{Type: "ack", Status: "broadcast", MsgID: msgID})
 				continue
 			}
 			if len(targets) == 0 {
 				if env.Meta != nil && env.Meta["no_queue"] == "true" {
-					_ = writeJSON(conn, envelope{Type: "ack", Status: "offline", MsgID: msgID})
+					_ = writeJSONW(writer, envelope{Type: "ack", Status: "offline", MsgID: msgID})
 					continue
 				}
 				s.queueOffline(sessionID, env.To, msgEnv)
-				_ = writeJSON(conn, envelope{Type: "ack", Status: "queued", MsgID: msgID})
+				_ = writeJSONW(writer, envelope{Type: "ack", Status: "queued", MsgID: msgID})
 				continue
 			}
 			for _, t := range targets {
-				_ = writeJSON(t.conn, msgEnv)
+				_ = writeJSONW(t.writer, msgEnv)
 			}
-			_ = writeJSON(conn, envelope{Type: "ack", Status: "delivered", MsgID: msgID})
+			_ = writeJSONW(writer, envelope{Type: "ack", Status: "delivered", MsgID: msgID})
 		default:
-			_ = writeJSON(conn, envelope{Type: "error", Text: "unknown type"})
+			_ = writeJSONW(writer, envelope{Type: "error", Text: "unknown type"})
 		}
 	}
 }
@@ -1126,6 +1149,17 @@ func formatAck(env envelope, mode outputMode) string {
 		}
 		return "ack"
 	}
+}
+
+type connWriter struct {
+	mu   sync.Mutex
+	conn net.Conn
+}
+
+func writeJSONW(w *connWriter, env envelope) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return writeJSON(w.conn, env)
 }
 
 func configPath() (string, error) {

@@ -200,12 +200,36 @@ func TestHistoryWrites(t *testing.T) {
 	_ = readEnv(t, a, 2*time.Second) // ack
 	_ = readEnv(t, b, 2*time.Second) // message
 
-	path := filepath.Join(dir, "alpha-thread.jsonl")
+	path := filepath.Join(dir, "alpha__alpha-thread.jsonl")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read history: %v", err)
 	}
 	if !strings.Contains(string(data), `"text":"logged"`) {
 		t.Fatalf("history missing message: %s", string(data))
+	}
+}
+
+func TestHistorySessionIsolation(t *testing.T) {
+	addr, cleanup := startTestServer(t, "")
+	defer cleanup()
+
+	a := dialAndHello(t, addr, "agent_a", "alpha")
+	defer func() { _ = a.conn.Close() }()
+	b := dialAndHello(t, addr, "agent_b", "beta")
+	defer func() { _ = b.conn.Close() }()
+
+	sendEnv(t, a, envelope{Type: "msg", To: "agent_a", Text: "alpha msg", Thread: "shared"})
+	_ = readEnv(t, a, 2*time.Second) // ack
+	_ = readEnv(t, a, 2*time.Second) // delivered msg
+
+	sendEnv(t, b, envelope{Type: "msg", To: "agent_b", Text: "beta msg", Thread: "shared"})
+	_ = readEnv(t, b, 2*time.Second) // ack
+	_ = readEnv(t, b, 2*time.Second) // delivered msg
+
+	sendEnv(t, a, envelope{Type: "history", Session: "alpha", Thread: "shared"})
+	histAlpha := readEnv(t, a, 2*time.Second)
+	if histAlpha.Type != "history" || strings.Contains(histAlpha.Text, "beta msg") {
+		t.Fatalf("history leak: %s", histAlpha.Text)
 	}
 }
