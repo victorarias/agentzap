@@ -50,10 +50,10 @@ chmod +x agentzap_*
 sudo install -m 0755 agentzap_<os>_<arch> /usr/local/bin/agentzap
 ```
 
-Homebrew (HEAD until first stable release):
+Homebrew:
 ```
 brew tap victorarias/agentzap
-brew install --HEAD agentzap
+brew install agentzap
 ```
 
 ## Install the agent prompt
