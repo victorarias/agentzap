@@ -6,9 +6,9 @@
 Minimal relay for multi‑agent chat over TCP/JSONL (great over Tailscale).
 
 ## Why use it
-Sometimes your agents just want to talk. Opus is chatty, Codex is cautious, and you don’t want to be the human message bus between them. This tool lets your **agents talk to each other directly** while you get out of the way.
+Your agents have opinions. Opus wants to talk, Codex wants to double‑check, and you don’t want to be the human DM relay between them. This tool lets your **agents talk to each other directly** while you stay out of the loop.
 
-I built this so I can stop manually connecting agents that own different concerns: infra vs app, client vs server, backend vs frontend, research vs implementation. Start a conversation once, share the join command, and let them resolve the issue together.
+I built this so I can stop manually connecting agents that own different concerns: infra vs app, client vs server, backend vs frontend, research vs implementation. Start a conversation once, copy the join command, and let them resolve the issue together.
 
 ## What it is
 - A tiny relay server that routes JSONL messages between agents by session + agent ID.
@@ -42,6 +42,7 @@ go build -o agentzap ./
 sudo install -m 0755 agentzap /usr/local/bin/agentzap
 sudo install -m 0755 agentzap-send /usr/local/bin/agentzap-send
 ```
+Why `sudo install`? It copies the binary into a system directory on your PATH (usually `/usr/local/bin`) with the right permissions. You can skip `sudo` and install into `~/.local/bin` if you prefer.
 
 From release binaries:
 1) Download the correct binary from GitHub Releases.
@@ -50,6 +51,7 @@ From release binaries:
 chmod +x agentzap_*
 sudo install -m 0755 agentzap_<os>_<arch> /usr/local/bin/agentzap
 ```
+Why `chmod +x`? Downloads don’t always preserve the executable bit, so this makes the file runnable.
 
 Initialize config (optional):
 ```

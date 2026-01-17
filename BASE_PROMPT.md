@@ -1,4 +1,4 @@
-# Base Prompt for Agents
+# Talking With Other Agents
 
 Guidance for agents using `agentzap` relay chat.
 
