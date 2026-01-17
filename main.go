@@ -1151,6 +1151,75 @@ func formatAck(env envelope, mode outputMode) string {
 	}
 }
 
+const basePrompt = `# Talking With Other Agents
+
+Guidance for agents using agentzap relay chat.
+
+---
+You can chat with other agents via agentzap relay. Messages are queued for offline agents and delivered when they join.
+
+If I ask you to "start a conversation" or "start a new conversation so another agent can join," you must:
+1) Create a new session and thread (or reuse the most recent active one if I said "continue").
+2) Tell me the session, thread, and your agent ID.
+3) Send an opening message to the target agent (or all) via agentzap send.
+4) Provide a short, copy-paste command for the other agent to join immediately.
+5) Immediately wait for a response.
+
+Join (register) to a session:
+- One-shot wait (also registers):
+agentzap wait --id <your_id> --session <session> --thread <thread> --timeout 300s
+- Or persistent client:
+agentzap client --id <your_id> --session <session>
+
+Send a message:
+agentzap send --from <your_id> --to <other_id|all> --session <session> --thread <thread> --text "<message>"
+
+ID / Session / Thread selection (auto):
+- If I explicitly provide id, session, or thread, use those exactly.
+- Otherwise:
+  - session: reuse the most recent active session you used with me; if none, use zap-<YYYYMMDD>.
+  - thread: if this is a continuation, reuse the last thread with the same counterpart; otherwise generate thread-<short-rand> and mention it in your first message.
+  - agent id: choose a stable short id for this session (e.g., opus, codex, agent-x). Reuse it for all messages in the same session.
+
+Rules:
+- Use the same session for everyone.
+- Use the same thread when expecting a reply.
+- If you generate a new session/thread, state it once in your first relay message.
+- If you hit "target not online," tell me the exact join command for the other agent.
+- After sending any message, immediately run agentzap wait.
+- The relay queues messages for offline agents, so you can send first; the other agent will receive on join.
+- If you need machine-readable output, use --json.
+- Keep the conversation going until both agents explicitly say "Done and out."
+- If no response arrives, retry: wait again (long timeouts are fine) and resend a short nudge if needed.
+- If you're busy for a while, send periodic keep-alives so the other agent knows you're still working.
+- State your role clearly (e.g., infra, app, client, server) and speak in clear, unambiguous instructions.
+- Be explicit about expectations so the other agent is not misled. If they should wait, say that clearly.
+- If you plan to take an action, say so explicitly (e.g., "dependency is missing; I will install it--please wait").
+- When receiving instructions, don't interrupt long-running work. If the other agent says "I will do X--please wait," then wait; you can acknowledge after they finish or via a brief keep-alive later.
+
+If relay address is configured in ~/.agentzap/config.yaml, omit --addr.
+---
+`
+
+func installPrompt(path string, force bool) error {
+	if path == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		path = filepath.Join(home, ".codex", "AGENTS.md")
+	}
+	if !force {
+		if _, err := os.Stat(path); err == nil {
+			return fmt.Errorf("prompt file exists: %s (use --force to overwrite)", path)
+		}
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(basePrompt), 0o644)
+}
+
 type connWriter struct {
 	mu   sync.Mutex
 	conn net.Conn
@@ -1250,6 +1319,10 @@ func main() {
 	initSession := initCmd.String("session", "default", "session id")
 	initID := initCmd.String("id", "", "agent id")
 	initForce := initCmd.Bool("force", false, "overwrite existing config")
+
+	promptCmd := flag.NewFlagSet("prompt", flag.ExitOnError)
+	promptPath := promptCmd.String("path", "", "output path (default: ~/.codex/AGENTS.md)")
+	promptForce := promptCmd.Bool("force", false, "overwrite existing file")
 
 	presenceCmd := flag.NewFlagSet("presence", flag.ExitOnError)
 	presenceAddr := presenceCmd.String("addr", defaultAddr, "relay address")
@@ -1371,6 +1444,11 @@ func main() {
 			ID:      *initID,
 		}
 		if err := saveConfig(cfg, *initForce); err != nil {
+			log.Fatal(err)
+		}
+	case "prompt":
+		_ = promptCmd.Parse(os.Args[2:])
+		if err := installPrompt(*promptPath, *promptForce); err != nil {
 			log.Fatal(err)
 		}
 	case "presence", "who":
@@ -1557,6 +1635,7 @@ USAGE:
   agentzap presence --session alpha
   agentzap history --session alpha --thread topic-1 --last 10
   agentzap pin set --session alpha topic "agent glossary"
+  agentzap prompt --force
   agentzap config show
   agentzap doctor
 

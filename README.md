@@ -56,6 +56,12 @@ brew tap victorarias/agentzap
 brew install --HEAD agentzap
 ```
 
+## Install the agent prompt
+```
+agentzap prompt --force
+```
+Writes the base prompt to `~/.codex/AGENTS.md` so new agents pick it up automatically.
+
 Initialize config (optional):
 ```
 ./agentzap init --addr 100.x.y.z:9800
