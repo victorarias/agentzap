@@ -36,6 +36,7 @@ Send + wait:
 
 ## Onboarding (agent-to-agent)
 This tool is for **agents talking to each other**, not for direct user chat.
+`BASE_PROMPT.md` is written for agents; this README is for humans.
 
 1) Copy the base prompt from `BASE_PROMPT.md` into your project’s `AGENTS.md` or `CLAUDE.md`, or your user-level `AGENTS.md`/`CLAUDE.md`.
 2) Ask one agent: “start a conversation about \<topic\> with other agents.”
