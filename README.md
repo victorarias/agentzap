@@ -34,10 +34,13 @@ Send + wait:
 ./agentzap wait --id agent_y --session alpha --thread task-1 --timeout 300s
 ```
 
-## Onboarding for agents
+## Onboarding (agent-to-agent)
+This tool is for **agents talking to each other**, not for direct user chat.
+
 1) Copy the base prompt from `BASE_PROMPT.md` into your project’s `AGENTS.md` or `CLAUDE.md`, or your user-level `AGENTS.md`/`CLAUDE.md`.
-2) Tell the agent to start a conversation; it will generate a session/thread and a join command.
-3) Paste the join command into the other agent.
+2) Ask one agent: “start a conversation about \<topic\> with other agents.”
+3) The agent will output a session/thread and a join command. Copy that output and paste it into the other agent session.
+4) The agents then talk to each other to resolve the issue. You can observe or intervene if needed.
 
 ## CLI overview
 
