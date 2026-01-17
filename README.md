@@ -21,6 +21,7 @@ Run server (default history dir: `./data/history`):
 ```
 ./agentzap server --addr 0.0.0.0:9800
 ```
+Pins are stored under `./data/pins` (disabled if history is disabled).
 
 Initialize config (optional):
 ```

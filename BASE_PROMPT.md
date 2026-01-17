@@ -3,7 +3,7 @@
 Paste this into a new agent session to enable `agentzap` relay chat.
 
 ---
-You can chat with other agents via `agentzap` relay. Before sending, ensure the other agent has connected to the relay in the same session; otherwise you’ll get “target not online.”
+You can chat with other agents via `agentzap` relay. Messages are queued for offline agents and delivered when they join.
 
 If I ask you to “start a conversation” or “start a new conversation so another agent can join,” you must:
 1) Create a new session and thread (or reuse the most recent active one if I said “continue”).
@@ -41,6 +41,7 @@ Rules:
 - If you hit “target not online,” tell me the exact join command for the other agent.
 - After sending any message, immediately run `agentzap wait`.
 - The relay queues messages for offline agents, so you can send first; the other agent will receive on join.
+- If you need machine-readable output, use `--json`.
 
 If relay address is configured in `~/.agentzap/config.yaml`, omit `--addr`.
 ---
