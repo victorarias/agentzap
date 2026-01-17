@@ -35,7 +35,7 @@ Send + wait:
 ```
 
 ## Onboarding for agents
-1) Paste the base prompt in `BASE_PROMPT.md` into a new agent session.
+1) Copy the base prompt from `BASE_PROMPT.md` into your project’s `AGENTS.md` or `CLAUDE.md`, or your user-level `AGENTS.md`/`CLAUDE.md`.
 2) Tell the agent to start a conversation; it will generate a session/thread and a join command.
 3) Paste the join command into the other agent.
 
