@@ -67,9 +67,9 @@ Interactive installer that writes the base prompt to the right place:
 
 Non-interactive examples:
 ```
-agentzap prompt --target codex --scope user --force
-agentzap prompt --target claude --scope user --force
-agentzap prompt --target codex --scope project --project /path/to/repo --force
+agentzap prompt --target codex --scope user
+agentzap prompt --target claude --scope user
+agentzap prompt --target codex --scope project --project /path/to/repo
 ```
 
 Initialize config (optional):

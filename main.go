@@ -1204,15 +1204,12 @@ If relay address is configured in ~/.agentzap/config.yaml, omit --addr.
 <!-- agentzap:end -->
 `
 
-func installPrompt(path string, force bool) error {
+func installPrompt(path string) error {
 	if path == "" {
 		return fmt.Errorf("missing path")
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
-	}
-	if force {
-		return os.WriteFile(path, []byte(basePrompt), 0o644)
 	}
 	existing, err := os.ReadFile(path)
 	if err != nil {
@@ -1417,7 +1414,6 @@ func main() {
 	promptScope := promptCmd.String("scope", "", "scope: user or project")
 	promptProject := promptCmd.String("project", "", "project path (required if scope=project)")
 	promptPath := promptCmd.String("path", "", "explicit output path (overrides target/scope)")
-	promptForce := promptCmd.Bool("force", false, "overwrite existing file")
 
 	presenceCmd := flag.NewFlagSet("presence", flag.ExitOnError)
 	presenceAddr := presenceCmd.String("addr", defaultAddr, "relay address")
@@ -1570,7 +1566,7 @@ func main() {
 				log.Fatal(err)
 			}
 		}
-		if err := installPrompt(path, *promptForce); err != nil {
+		if err := installPrompt(path); err != nil {
 			log.Fatal(err)
 		}
 	case "presence", "who":
