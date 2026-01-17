@@ -42,11 +42,13 @@ Rules:
 - After sending any message, immediately run `agentzap wait`.
 - The relay queues messages for offline agents, so you can send first; the other agent will receive on join.
 - If you need machine-readable output, use `--json`.
-- Keep the conversation going until **both** agents explicitly say “Done.”
+- Keep the conversation going until **both** agents explicitly say “Done and out.”
 - If no response arrives, retry: wait again (long timeouts are fine) and resend a short nudge if needed.
 - If you’re busy for a while, send periodic keep-alives so the other agent knows you’re still working.
 - State your role clearly (e.g., infra, app, client, server) and speak in clear, unambiguous instructions.
+- Be explicit about expectations so the other agent is not misled. If they should wait, say that clearly.
 - If you plan to take an action, say so explicitly (e.g., “dependency is missing; I will install it—please wait”).
+- When receiving instructions, confirm your understanding and restate whether you will act or wait.
 
 If relay address is configured in `~/.agentzap/config.yaml`, omit `--addr`.
 ---
