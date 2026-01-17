@@ -1203,11 +1203,7 @@ If relay address is configured in ~/.agentzap/config.yaml, omit --addr.
 
 func installPrompt(path string, force bool) error {
 	if path == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return err
-		}
-		path = filepath.Join(home, ".codex", "AGENTS.md")
+		return fmt.Errorf("missing path")
 	}
 	if !force {
 		if _, err := os.Stat(path); err == nil {
@@ -1218,6 +1214,42 @@ func installPrompt(path string, force bool) error {
 		return err
 	}
 	return os.WriteFile(path, []byte(basePrompt), 0o644)
+}
+
+func promptInstallPath(target, scope, projectPath string) (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	if scope == "user" {
+		if target == "codex" {
+			return filepath.Join(home, ".codex", "AGENTS.md"), nil
+		}
+		if target == "claude" {
+			return filepath.Join(home, ".claude", "CLAUDE.md"), nil
+		}
+	}
+	if scope == "project" {
+		if projectPath == "" {
+			return "", fmt.Errorf("project path required")
+		}
+		if target == "codex" {
+			return filepath.Join(projectPath, "AGENTS.md"), nil
+		}
+		if target == "claude" {
+			return filepath.Join(projectPath, "CLAUDE.md"), nil
+		}
+	}
+	return "", fmt.Errorf("invalid target/scope")
+}
+
+func askLine(r *bufio.Reader, prompt string) (string, error) {
+	fmt.Fprint(os.Stderr, prompt)
+	line, err := r.ReadString('\n')
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+	return strings.TrimSpace(line), nil
 }
 
 type connWriter struct {
@@ -1321,7 +1353,10 @@ func main() {
 	initForce := initCmd.Bool("force", false, "overwrite existing config")
 
 	promptCmd := flag.NewFlagSet("prompt", flag.ExitOnError)
-	promptPath := promptCmd.String("path", "", "output path (default: ~/.codex/AGENTS.md)")
+	promptTarget := promptCmd.String("target", "", "target agent tool: codex or claude")
+	promptScope := promptCmd.String("scope", "", "scope: user or project")
+	promptProject := promptCmd.String("project", "", "project path (required if scope=project)")
+	promptPath := promptCmd.String("path", "", "explicit output path (overrides target/scope)")
 	promptForce := promptCmd.Bool("force", false, "overwrite existing file")
 
 	presenceCmd := flag.NewFlagSet("presence", flag.ExitOnError)
@@ -1448,7 +1483,34 @@ func main() {
 		}
 	case "prompt":
 		_ = promptCmd.Parse(os.Args[2:])
-		if err := installPrompt(*promptPath, *promptForce); err != nil {
+		path := *promptPath
+		if path == "" {
+			target := strings.TrimSpace(*promptTarget)
+			scope := strings.TrimSpace(*promptScope)
+			projectPath := strings.TrimSpace(*promptProject)
+			reader := bufio.NewReader(os.Stdin)
+			if target == "" {
+				if v, err := askLine(reader, "Install for which tool? (codex/claude): "); err == nil {
+					target = v
+				}
+			}
+			if scope == "" {
+				if v, err := askLine(reader, "Install for home folder or project? (user/project): "); err == nil {
+					scope = v
+				}
+			}
+			if scope == "project" && projectPath == "" {
+				if v, err := askLine(reader, "Project path: "); err == nil {
+					projectPath = v
+				}
+			}
+			var err error
+			path, err = promptInstallPath(target, scope, projectPath)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+		if err := installPrompt(path, *promptForce); err != nil {
 			log.Fatal(err)
 		}
 	case "presence", "who":
@@ -1635,7 +1697,7 @@ USAGE:
   agentzap presence --session alpha
   agentzap history --session alpha --thread topic-1 --last 10
   agentzap pin set --session alpha topic "agent glossary"
-  agentzap prompt --force
+  agentzap prompt
   agentzap config show
   agentzap doctor
 

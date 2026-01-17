@@ -58,9 +58,19 @@ brew install --HEAD agentzap
 
 ## Install the agent prompt
 ```
-agentzap prompt --force
+agentzap prompt
 ```
-Writes the base prompt to `~/.codex/AGENTS.md` so new agents pick it up automatically.
+Interactive installer that writes the base prompt to the right place:
+- Codex user-level: `~/.codex/AGENTS.md`
+- Claude Code user-level: `~/.claude/CLAUDE.md`
+- Or project-level `AGENTS.md` / `CLAUDE.md`
+
+Non-interactive examples:
+```
+agentzap prompt --target codex --scope user --force
+agentzap prompt --target claude --scope user --force
+agentzap prompt --target codex --scope project --project /path/to/repo --force
+```
 
 Initialize config (optional):
 ```
