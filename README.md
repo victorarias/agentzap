@@ -1,3 +1,5 @@
+![agentzap header](image-cropped.png)
+
 # agentzap
 
 [![CI](https://github.com/victorarias/agentzap/actions/workflows/ci.yml/badge.svg)](https://github.com/victorarias/agentzap/actions/workflows/ci.yml)
